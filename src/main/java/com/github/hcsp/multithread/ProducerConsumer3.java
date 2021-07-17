@@ -1,17 +1,11 @@
 package com.github.hcsp.multithread;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.Random;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 
-public class ProducerConsumer2 {
-    private static final Lock lock = new ReentrantLock();
-    private static final Condition isConsumed = lock.newCondition();
-    private static final Condition isProduced = lock.newCondition();
-
-    private static final List<Integer> basket = new ArrayList<>(1);
+public class ProducerConsumer3 {
+    private static final BlockingQueue<Integer> queue = new ArrayBlockingQueue<Integer>(1);
     private static int index = 0;
 
     public static void main(String[] args) throws InterruptedException {
@@ -39,12 +33,12 @@ public class ProducerConsumer2 {
         }
     }
 
+
     private static class CreateRunInstance implements CreateRun {
         @Override
         public void run(Enum<Type> type) {
-            lock.lock();
             try {
-                while (index < 10) {
+                while (index < 3) {
                     if (type == Type.CONSUME) {
                         consume();
                     } else {
@@ -53,30 +47,22 @@ public class ProducerConsumer2 {
                 }
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
-            } finally {
-                lock.unlock();
             }
         }
 
         @Override
         public void produce() throws InterruptedException {
-            if (basket.isEmpty()) {
-                Worker.Produce(basket);
-                isProduced.signal();
-            } else {
-                isConsumed.wait();
-            }
+            int random = new Random().nextInt();
+            System.out.println("Producing " + random);
+            queue.put(random);
         }
 
         @Override
         public void consume() throws InterruptedException {
-            if (basket.isEmpty()) {
-                isProduced.wait();
-            } else {
-                Worker.Consume(basket);
-                index++;
-                isConsumed.signal();
-            }
+            int random = queue.take();
+            index++;
+            System.out.println("Consuming " + random);
         }
     }
+
 }
