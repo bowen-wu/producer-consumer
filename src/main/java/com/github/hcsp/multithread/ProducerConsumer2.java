@@ -3,9 +3,15 @@ package com.github.hcsp.multithread;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
-public class ProducerConsumer1 {
-    private static final Object lock = new Object();
+public class ProducerConsumer2 {
+    private static final Lock lock = new ReentrantLock();
+    private static final Condition isConsumed = lock.newCondition();
+    private static final Condition isProduced = lock.newCondition();
+
     private static List<Integer> basket = new ArrayList<>(1);
     private static int index = 0;
 
@@ -23,43 +29,46 @@ public class ProducerConsumer1 {
     public static class Producer extends Thread {
         @Override
         public void run() {
-            while (index < 10) {
-                synchronized (lock) {
+            lock.lock();
+            try {
+                while (index < 10) {
                     if (basket.isEmpty()) {
                         int random = new Random().nextInt();
                         basket.add(random);
                         System.out.println("Producing " + basket.get(0));
-                        lock.notify();
+                        isProduced.signal();
                     } else {
-                        try {
-                            lock.wait();
-                        } catch (InterruptedException e) {
-                            throw new RuntimeException(e);
-                        }
+                        isConsumed.wait();
                     }
                 }
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            } finally {
+                lock.unlock();
             }
+
         }
     }
 
     public static class Consumer extends Thread {
         @Override
         public void run() {
-            while (index < 10) {
-                synchronized (lock) {
+            lock.lock();
+            try {
+                while (index < 10) {
                     if (basket.isEmpty()) {
-                        try {
-                            lock.wait();
-                        } catch (InterruptedException e) {
-                            throw new RuntimeException(e);
-                        }
+                        isProduced.wait();
                     } else {
                         System.out.println("Consuming " + basket.get(0));
                         basket.remove(0);
                         index++;
-                        lock.notify();
+                        isConsumed.signal();
                     }
                 }
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            } finally {
+                lock.unlock();
             }
         }
     }
